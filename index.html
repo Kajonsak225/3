@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>ESP8266 Smart Farm</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Google Font -->
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg,#1e3c72,#2a5298);
+  font-family: 'Kanit', sans-serif;
+  color: #fff;
+}
+
+.card {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(10px);
+  padding: 30px;
+  border-radius: 20px;
+  width: 340px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.35);
+  text-align: center;
+}
+
+h1 {
+  margin: 0 0 10px;
+  font-size: 22px;
+}
+
+.status {
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  font-size: 18px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+  margin-bottom: 20px;
+}
+
+button.on {
+  background: #2ecc71;
+  color: #003d1f;
+}
+
+button.off {
+  background: #e74c3c;
+  color: #fff;
+}
+
+button:hover {
+  transform: scale(1.04);
+}
+
+.data {
+  background: rgba(0,0,0,0.25);
+  border-radius: 12px;
+  padding: 12px;
+  margin: 8px 0;
+  font-size: 16px;
+}
+
+.alarm.on {
+  color: #ff4d4d;
+  font-weight: 600;
+}
+
+.buzzer.on {
+  color: #ff3b3b;
+  font-weight: 600;
+}
+
+.online.off {
+  color: #ffcc00;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <h1>🌱 Smart Farm ESP8266</h1>
+
+  <div class="status" id="statusText">กำลังเชื่อมต่อ...</div>
+
+  <button id="toggleBtn" class="off">🔴 SYSTEM OFF</button>
+
+  <div class="data">🌱 Soil : <span id="soil">--</span> %</div>
+  <div class="data">🌡 Temp : <span id="temp">--</span> °C</div>
+  <div class="data alarm" id="alarm">สถานะ : ปกติ</div>
+  <div class="data buzzer" id="buzzer">🔇 Buzzer : OFF</div>
+  <div class="data online" id="online">📡 ESP : Offline</div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC1a-XkNqLQ-fR9K9G3rRq4H3k9SKw9EF0",
+  databaseURL: "https://kjszz-1a818-default-rtdb.firebaseio.com/"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ===== ELEMENT =====
+const toggleBtn = document.getElementById("toggleBtn");
+const statusText = document.getElementById("statusText");
+const soilEl = document.getElementById("soil");
+const tempEl = document.getElementById("temp");
+const alarmEl = document.getElementById("alarm");
+const buzzerEl = document.getElementById("buzzer");
+const onlineEl = document.getElementById("online");
+
+// ===== TOGGLE SYSTEM =====
+toggleBtn.onclick = () => {
+  const next = toggleBtn.classList.contains("off");
+  set(ref(db, "control/enable"), next);
+};
+
+// ===== SYSTEM STATUS =====
+onValue(ref(db, "control/enable"), snap => {
+  const on = snap.val() === true;
+
+  if (on) {
+    toggleBtn.className = "on";
+    toggleBtn.textContent = "🟢 SYSTEM ON";
+    statusText.textContent = "ระบบกำลังทำงาน";
+  } else {
+    toggleBtn.className = "off";
+    toggleBtn.textContent = "🔴 SYSTEM OFF";
+    statusText.textContent = "ระบบหยุดทำงาน";
+  }
+});
+
+// ===== SENSOR DATA =====
+onValue(ref(db, "sensor"), snap => {
+  const d = snap.val() || {};
+
+  soilEl.textContent = d.soil ?? "--";
+  tempEl.textContent = d.temperature ?? "--";
+
+  // ESP online
+  if (d.online) {
+    onlineEl.textContent = "📡 ESP : Online";
+    onlineEl.className = "data online";
+  } else {
+    onlineEl.textContent = "📡 ESP : Offline";
+    onlineEl.className = "data online off";
+  }
+
+  // Alarm & Buzzer
+  if (d.alarm) {
+    alarmEl.textContent = "⚠️ ALERT";
+    alarmEl.className = "data alarm on";
+
+    buzzerEl.textContent = "🔊 Buzzer : ON";
+    buzzerEl.className = "data buzzer on";
+  } else {
+    alarmEl.textContent = "สถานะ : ปกติ";
+    alarmEl.className = "data alarm";
+
+    buzzerEl.textContent = "🔇 Buzzer : OFF";
+    buzzerEl.className = "data buzzer";
+  }
+});
+</script>
+
+</body>
+</html>
